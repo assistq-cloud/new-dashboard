@@ -11,3 +11,29 @@
 .hidden{display:none!important}.login{min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at 20% 10%,#ecebff 0,#f5f7fb 35%,#f5f7fb 100%);padding:20px}.login-card{width:min(460px,100%);background:#fff;border:1px solid var(--line);border-radius:20px;padding:30px;box-shadow:0 24px 60px #10182816}.login-brand{display:flex;gap:10px;align-items:center;color:#101828;padding:0 0 15px}.login-brand b{display:block;letter-spacing:.5px;font-size:18px}.login-brand small{display:block;color:#667085;font-size:10px;margin-top:3px}.login-brand .mark{flex:0 0 auto}.login-card h1{margin:10px 0 5px}.login-card p{color:var(--muted);font-size:12px;margin-bottom:22px}.login-card label{display:block;font-size:10px;color:var(--muted);margin:12px 0 5px}.login-card input{width:100%;padding:11px;border:1px solid var(--line);border-radius:9px;background:#fff;color:#101828}.login-card .btn{width:100%;margin-top:16px}.error{color:#b42318;background:#fee4e2;border-radius:8px;padding:8px;margin-top:10px;font-size:10px}.integration-status{font-size:11px;font-weight:800;margin:16px 0;color:var(--green)}.toolbar{display:flex;align-items:center;gap:12px;justify-content:space-between;margin-bottom:15px}.toolbar .muted{max-width:650px}.dark .login{background:#080b14}.dark .login-card{background:#111624}.dark .login-card input{background:#111624;color:#f2f4f7}.dark .login-card{border-color:#252b3a}code{font-family:ui-monospace,monospace;font-size:10px}.btn+.btn{margin-left:6px}
 
 .sub-status.active,.sub-status.scheduled{color:#067647;background:#dcfae6}.sub-status.expired,.sub-status.suspended,.sub-status.archived{color:#b42318;background:#fee4e2}.danger{background:#fff;color:#b42318;border:1px solid #fecdca}.dark .danger{background:#111624;color:#f97066;border-color:#7a271a}
+
+/* Password show/hide */
+.pw-field{position:relative;display:flex}
+.pw-field input{padding-right:40px!important}
+.pw-eye{position:absolute;right:2px;top:2px;bottom:2px;width:36px;border:0;background:transparent;cursor:pointer;display:grid;place-items:center;font-size:15px;border-radius:8px;color:var(--muted);line-height:1}
+.pw-eye:hover{background:#8888880f;color:var(--text)}
+.dark .pw-eye:hover{background:#ffffff12}
+
+/* Aesthetic polish */
+.nav{transition:background .15s ease,color .15s ease}
+.icon{transition:border-color .15s ease,transform .1s ease;display:grid;place-items:center;font-size:14px}
+.icon:hover{border-color:var(--a);color:var(--a)}
+.icon:active{transform:scale(.94)}
+.btn{transition:filter .15s ease,transform .1s ease}
+.btn:hover{filter:brightness(1.07)}
+.btn:active{transform:scale(.98)}
+.btn.alt:hover{border-color:var(--a);color:var(--a)}
+.card{transition:box-shadow .2s ease}
+.login-card{animation:loginIn .35s ease}
+@keyframes loginIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.login-card input,.field input,.field select{transition:border-color .15s ease,box-shadow .15s ease}
+.login-card input:focus,.field input:focus,.field select:focus{outline:none;border-color:var(--a);box-shadow:0 0 0 3px #5b5ce21f}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#8888883a;border-radius:20px}
+::-webkit-scrollbar-thumb:hover{background:#88888860}
+.dark ::-webkit-scrollbar-thumb{background:#ffffff1f}
