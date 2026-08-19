@@ -140,6 +140,7 @@
   header#heroHeader.hasHeroImage p {
     color: white;
   }
+  .heroBtn {
     display: block;
     margin: 24px auto 0;
     background: var(--accent);
@@ -321,7 +322,7 @@
   <button class="cta" id="footerCta">Start a Chat</button>
 </div>
 
-<footer>Powered by SJ Leads</footer>
+<footer>Powered by SonQAI Technologies</footer>
 
 <button id="launcher">💬</button>
 
@@ -346,7 +347,7 @@ const CONTENT = {
 
   // Optional — paste a real photo URL here (property, storefront, team).
   // Leave as "" for no image; falls back safely either way.
-  heroImage: "",
+  heroImage: "https://i.postimg.cc/662j0DB1/real-estate-agent-website-hero-background-0YAT.jpg",
 
   about: "Horizon Realty has been helping buyers, renters, and investors navigate the Mumbai and Pune property markets for over a decade. We work with a curated set of verified listings, handle the paperwork end-to-end, and stay with you from the first shortlist to the final handover — no pressure, no hidden fees, just honest guidance.",
 
@@ -373,9 +374,9 @@ const CONTENT = {
   // Each listing photo is optional (falls back to a placeholder icon if
   // missing or broken — never shows a visible error).
   listings: [
-    { image: "", title: "3BHK Apartment, Sea-Facing", price: "₹1.65 Cr", specs: "1,480 sq.ft · Navi Mumbai · Ready to Move" },
-    { image: "", title: "2BHK Apartment, Gated Society", price: "₹82 L", specs: "980 sq.ft · Thane West · Under Construction" },
-    { image: "", title: "4BHK Independent Villa", price: "₹3.4 Cr", specs: "2,850 sq.ft · Pune · Ready to Move" }
+    { image: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750", title: "3BHK Apartment, Sea-Facing", price: "₹1.65 Cr", specs: "1,480 sq.ft · Navi Mumbai · Ready to Move" },
+    { image: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2", title: "2BHK Apartment, Gated Society", price: "₹82 L", specs: "980 sq.ft · Thane West · Under Construction" },
+    { image: "https://images.unsplash.com/photo-1568605114967-8130f3a36994", title: "4BHK Independent Villa", price: "₹3.4 Cr", specs: "2,850 sq.ft · Pune · Ready to Move" }
   ],
 
   testimonials: [
@@ -495,11 +496,20 @@ function scrollToSection(id) {
 
 // ============ CONFIG — edit these for each client ============
 const CONFIG = {
-  webhookUrl: "https://script.google.com/macros/s/AKfycbyZddoCVD7M1bnjFzmaP_6c_JdLr6T02z-PB_KC82-G1UQDSrVr08JpTo-StU37iGBT/exec",  // must end in /exec
-  dashboardUrl: "https://assistq-growth-platform.onrender.com", // ASSISTQ Growth Platform bridge
-  clientId: "demo-realty",
-  businessName: "This Business",
-  greeting: "Hi! 👋 What's your name?",
+  webhookUrl: "https://script.google.com/macros/s/AKfycbzaRE_WXK63mRu3DW7pqLGuPGYglHdgjsHbelnUorzfA1so04iCxl49f0NzEVJyQAk/exec",  // must end in /exec
+
+  // Must match the exact Client ID this business was created with in the
+  // ASSISTQ Growth Platform dashboard (Clients page). Lowercase, hyphens only.
+  clientId: "horizon-realty",
+
+  // Your live ASSISTQ Growth Platform URL on Render, e.g.
+  // https://assistq-growth-platform.onrender.com — NO trailing slash.
+  // Leave the placeholder and conversations/leads simply won't be pushed
+  // to the dashboard; the chat itself still works either way.
+  dashboardUrl: "https://new-dashboard-2-f19p.onrender.com",
+
+  businessName: "Horizon Realty",
+  greeting: " Hi! 👋 I'm the virtual assistant for Horizon Realty. I can help you find the right property, or answer any questions — what's your name?",
 
   // Must be in the SAME ORDER as the backend's CONFIG.questions.
   // Give a question "options" to show quick-tap buttons instead of typing.
@@ -507,7 +517,6 @@ const CONFIG = {
   questions: [
     { key: "name",  options: null },
     { key: "phone", options: null },
-    { key: "email", options: null },
     { key: "purpose", options: ["Buying", "Renting"] },
     { key: "location", options: null },
     { key: "configuration", options: ["1BHK", "2BHK", "3BHK", "4BHK"] },
@@ -515,52 +524,86 @@ const CONFIG = {
     { key: "timeline", options: ["Immediately", "1-3 months", "3-6 months", "Just exploring"] }
   ]
 };
+
+// Optional query-string overrides, e.g. ?clientId=horizon-realty&dashboardUrl=https%3A%2F%2Fyour-app.onrender.com
+// Handy if you reuse this same file for more than one client site.
+const cfgParams = new URLSearchParams(window.location.search);
+const clientIdFromUrl = cfgParams.get("clientId");
+const dashboardFromUrl = cfgParams.get("dashboardUrl");
+if (clientIdFromUrl) CONFIG.clientId = clientIdFromUrl;
+if (dashboardFromUrl) CONFIG.dashboardUrl = dashboardFromUrl.replace(/\/$/, "");
 // ================================================================
 
 let conversation = [];
 let knownFields = {};
 let isComplete = false;
-let awaitingLocalField = null;
 const leadId = "lead_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
 
-// Allow a website embed to select a client without editing the chatbot source.
-const params = new URLSearchParams(window.location.search);
-const clientFromUrl = params.get("clientId");
-const dashboardFromUrl = params.get("dashboardUrl");
-if (clientFromUrl) CONFIG.clientId = clientFromUrl;
-if (dashboardFromUrl) CONFIG.dashboardUrl = dashboardFromUrl.replace(/\/$/, "");
+// Capture UTM tracking params from the URL, if present (e.g. ?utm_source=facebook)
+const urlParams = new URLSearchParams(window.location.search);
+const utm = {
+  source: urlParams.get("utm_source") || "",
+  medium: urlParams.get("utm_medium") || "",
+  campaign: urlParams.get("utm_campaign") || ""
+};
 
-// Capture UTM tracking params from the URL.
-// Normal links use: ?utm_source=instagram&utm_medium=paid&utm_campaign=summer_property
-// The parser also tolerates accidentally omitted '&' separators so a malformed test URL
-// does not turn the whole query into the source value.
-function readUTM() {
-  const rawSearch = window.location.search || "";
-  const query = rawSearch.replace(/^\?/, "");
-  const normalized = query.replace(/(?<!^)(?<![&])utm_(medium|campaign|source)=/gi, "&utm_$1=");
-  const params = new URLSearchParams(normalized);
-  return {
-    source: (params.get("utm_source") || "").trim(),
-    medium: (params.get("utm_medium") || "").trim(),
-    campaign: (params.get("utm_campaign") || "").trim()
-  };
+// ---- Push conversation/lead events to the ASSISTQ dashboard so they show
+// up live in Conversations/Leads. Silent no-op if dashboardUrl isn't set
+// yet, and never blocks or breaks the chat if the dashboard is unreachable.
+async function pushConversationEvent(role, content) {
+  if (!CONFIG.dashboardUrl || CONFIG.dashboardUrl.includes("PASTE_")) return;
+  try {
+    await fetch(CONFIG.dashboardUrl + "/api/bridge/conversation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        leadId: leadId,
+        clientId: CONFIG.clientId,
+        event: { role, content },
+        fields: knownFields,
+        utm: utm
+      })
+    });
+  } catch (e) { /* dashboard offline — chat still works fine without it */ }
 }
-const utm = readUTM();
+async function pushLeadEvent() {
+  if (!CONFIG.dashboardUrl || CONFIG.dashboardUrl.includes("PASTE_")) return;
+  try {
+    await fetch(CONFIG.dashboardUrl + "/api/bridge/lead", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        conversationId: leadId,
+        clientId: CONFIG.clientId,
+        fields: knownFields,
+        messages: conversation,
+        utm: utm
+      })
+    });
+  } catch (e) { /* dashboard offline — lead is still saved via the sheet/email path */ }
+}
 
-// Load non-secret client configuration from ASSISTQ so each client can be configured from the dashboard.
-async function loadAssistQClientConfig(){
-  if(!CONFIG.dashboardUrl || !CONFIG.clientId) return;
-  try{
-    const r=await fetch(CONFIG.dashboardUrl+"/api/public/client-config?clientId="+encodeURIComponent(CONFIG.clientId),{cache:"no-store"});
-    if(!r.ok){ CONFIG.subscriptionActive=false; return; }
-    const data=await r.json();
+// ---- Pull this client's live config from the ASSISTQ dashboard (greeting,
+// business name, question set) so it can be edited from Client Setup without
+// touching this file. If the dashboard is unreachable, a field is missing,
+// or dashboardUrl/clientId isn't set, everything just falls back to the
+// CONFIG values already hardcoded above — that hardcoded CONFIG is your
+// offline backup and is never overwritten on disk, only in memory per visit.
+let configLoaded = false;
+async function loadAssistQClientConfig() {
+  if (configLoaded) return;
+  configLoaded = true;
+  if (!CONFIG.dashboardUrl || CONFIG.dashboardUrl.includes("PASTE_")) return;
+  try {
+    const r = await fetch(CONFIG.dashboardUrl + "/api/public/client-config?clientId=" + encodeURIComponent(CONFIG.clientId), { cache: "no-store" });
+    if (!r.ok) { CONFIG.subscriptionActive = false; return; }
+    const data = await r.json();
     CONFIG.subscriptionActive = data.subscription?.active !== false;
-    if(!CONFIG.subscriptionActive) return;
-    if(data.businessName) CONFIG.businessName=data.businessName;
-    if(data.assistant?.name) CONFIG.assistantName=data.assistant.name;
-    if(data.assistant?.greeting) CONFIG.greeting=data.assistant.greeting;
-    if(Array.isArray(data.assistant?.questions) && data.assistant.questions.length) CONFIG.questions=data.assistant.questions;
-  }catch(e){ console.debug("ASSISTQ client config unavailable",e); }
+    if (!CONFIG.subscriptionActive) return;
+    if (data.businessName) CONFIG.businessName = data.businessName;
+    if (data.assistant?.greeting) CONFIG.greeting = data.assistant.greeting;
+    if (Array.isArray(data.assistant?.questions) && data.assistant.questions.length) CONFIG.questions = data.assistant.questions;
+  } catch (e) { /* dashboard unreachable — keep using the hardcoded CONFIG above */ }
 }
 
 const launcher = document.getElementById("launcher");
@@ -577,7 +620,7 @@ launcher.addEventListener("click", async () => {
     if (CONFIG.subscriptionActive === false) { addMessage("error", "This assistant is temporarily unavailable. Please contact the business."); return; }
     addMessage("bot", CONFIG.greeting);
     conversation.push({ role: "assistant", content: CONFIG.greeting });
-    bridgeEvent("assistant", CONFIG.greeting);
+    pushConversationEvent("assistant", CONFIG.greeting);
     showOptionsIfAny();
   }
 });
@@ -589,7 +632,7 @@ async function openChat() {
     if (CONFIG.subscriptionActive === false) { addMessage("error", "This assistant is temporarily unavailable. Please contact the business."); return; }
     addMessage("bot", CONFIG.greeting);
     conversation.push({ role: "assistant", content: CONFIG.greeting });
-    bridgeEvent("assistant", CONFIG.greeting);
+    pushConversationEvent("assistant", CONFIG.greeting);
     showOptionsIfAny();
   }
   panel.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -627,87 +670,15 @@ function showOptionsIfAny() {
   optionsContainer.appendChild(row);
 }
 
-async function bridgeEvent(role, content) {
-  if (!CONFIG.dashboardUrl || CONFIG.dashboardUrl.includes("PASTE_")) return;
-  try {
-    await fetch(CONFIG.dashboardUrl + "/api/bridge/conversation", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        leadId,
-        event: { role, content, at: new Date().toISOString() },
-        fields: knownFields,
-        utm,
-        clientId: CONFIG.clientId,
-        businessName: CONFIG.businessName
-      }),
-      keepalive: true
-    });
-  } catch (e) {
-    // The chatbot must keep working even when the local dashboard is offline.
-    console.debug("ASSISTQ dashboard bridge unavailable", e);
-  }
-}
-
-async function bridgeLead() {
-  if (!CONFIG.dashboardUrl || CONFIG.dashboardUrl.includes("PASTE_")) return;
-  try {
-    await fetch(CONFIG.dashboardUrl + "/api/bridge/lead", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        conversationId: leadId,
-        fields: knownFields,
-        messages: conversation,
-        utm,
-        clientId: CONFIG.clientId,
-        businessName: CONFIG.businessName
-      }),
-      keepalive: true
-    });
-  } catch (e) {
-    console.debug("ASSISTQ dashboard lead bridge unavailable", e);
-  }
-}
-
 async function sendMessage(optionText) {
-  if (CONFIG.subscriptionActive === false) { addMessage("error", "This assistant is temporarily unavailable. Please contact the business."); return; }
   const text = optionText || textInput.value.trim();
   if (!text || isComplete) return;
-
-  if (awaitingLocalField) {
-    if (awaitingLocalField === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)) {
-      addMessage("error", "Please enter a valid email address.");
-      return;
-    }
-    const field=awaitingLocalField;
-    knownFields[field]=text;
-    addMessage("user", text);
-    conversation.push({ role: "user", content: text });
-    bridgeEvent("user", text);
-    textInput.value = "";
-    awaitingLocalField = null;
-    const missing = ["name", "phone", "email"].find(k => !String(knownFields[k] || "").trim());
-    if (missing) {
-      awaitingLocalField = missing;
-      const prompt = missing === "email" ? "Before I save this enquiry, what is the best email address to reach you?" : `Before I save this enquiry, could you share your ${missing}?`;
-      addMessage("bot", prompt);
-      conversation.push({ role: "assistant", content: prompt });
-      bridgeEvent("assistant", prompt);
-    } else {
-      addMessage("bot", "Thanks! I have everything I need. Let me save your enquiry.");
-      conversation.push({ role: "assistant", content: "Thanks! I have everything I need. Let me save your enquiry." });
-      bridgeEvent("assistant", "Thanks! I have everything I need. Let me save your enquiry.");
-      isComplete = true;
-      await submitLead();
-    }
-    return;
-  }
+  if (CONFIG.subscriptionActive === false) { addMessage("error", "This assistant is temporarily unavailable. Please contact the business."); return; }
 
   optionsContainer.innerHTML = "";
   addMessage("user", text);
   conversation.push({ role: "user", content: text });
-  bridgeEvent("user", text);
+  pushConversationEvent("user", text);
   textInput.value = "";
   sendBtn.disabled = true;
 
@@ -716,7 +687,7 @@ async function sendMessage(optionText) {
   try {
     const res = await fetch(CONFIG.webhookUrl, {
       method: "POST",
-      body: JSON.stringify({ action: "chat", leadId: leadId, messages: conversation, knownFields: knownFields, clientId: CONFIG.clientId, dashboardUrl: CONFIG.dashboardUrl, businessName: CONFIG.businessName })
+      body: JSON.stringify({ action: "chat", leadId: leadId, clientId: CONFIG.clientId, messages: conversation, knownFields: knownFields })
     });
 
     const rawText = await res.text();
@@ -740,25 +711,12 @@ async function sendMessage(optionText) {
     typingEl.remove();
     addMessage("bot", data.reply);
     conversation.push({ role: "assistant", content: data.reply });
+    pushConversationEvent("assistant", data.reply);
     knownFields = data.fields || knownFields;
-    bridgeEvent("assistant", data.reply);
 
     if (data.complete && !isComplete) {
-      const missing = ["name", "phone", "email"].find(k => !String(knownFields[k] || "").trim());
-      if (missing === "email") {
-        awaitingLocalField = "email";
-        addMessage("bot", "Before I save this enquiry, what is the best email address to reach you?");
-        conversation.push({ role: "assistant", content: "Before I save this enquiry, what is the best email address to reach you?" });
-        bridgeEvent("assistant", "Before I save this enquiry, what is the best email address to reach you?");
-      } else if (missing) {
-        awaitingLocalField = missing;
-        addMessage("bot", `Before I save this enquiry, could you share your ${missing}?`);
-        conversation.push({ role: "assistant", content: `Before I save this enquiry, could you share your ${missing}?` });
-        bridgeEvent("assistant", `Before I save this enquiry, could you share your ${missing}?`);
-      } else {
-        isComplete = true;
-        await submitLead();
-      }
+      isComplete = true;
+      await submitLead();
     } else {
       showOptionsIfAny();
     }
@@ -774,11 +732,10 @@ async function sendMessage(optionText) {
 
 async function submitLead() {
   if (CONFIG.subscriptionActive === false) { addMessage("error", "This assistant is temporarily unavailable. Please contact the business."); return; }
-  await bridgeLead();
   try {
     const res = await fetch(CONFIG.webhookUrl, {
       method: "POST",
-      body: JSON.stringify({ action: "submit", leadId: leadId, fields: knownFields, utm: utm, clientId: CONFIG.clientId, businessName: CONFIG.businessName })
+      body: JSON.stringify({ action: "submit", leadId: leadId, clientId: CONFIG.clientId, fields: knownFields, utm: utm })
     });
     const rawText = await res.text();
     let data;
@@ -788,6 +745,7 @@ async function submitLead() {
       addMessage("error", "Lead submit failed: " + (data ? data.message : rawText.slice(0, 300)));
     } else {
       addMessage("bot", "✅ Saved! Thanks — we'll be in touch shortly.");
+      await pushLeadEvent();
     }
   } catch (err) {
     addMessage("error", "Submit request failed: " + err.message);
