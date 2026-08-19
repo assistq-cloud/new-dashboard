@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Client Business Name</title>
+<style>
+  :root {
+    --ink: #14213d;
+    --accent: #e2703a;
+    --bg: #fdfaf6;
+    --bubble-bot: #f1ede6;
+    --bubble-user: #14213d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+  }
+
+  /* ---- Simple landing page content ---- */
+  header {
+    padding: 60px 20px 40px;
+    text-align: center;
+  }
+  header h1 {
+    font-size: 32px;
+    margin-bottom: 12px;
+  }
+  header p {
+    font-size: 17px;
+    opacity: 0.75;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  .hint {
+    margin: 30px auto 0;
+    text-align: center;
+    padding: 14px 22px;
+    background: white;
+    border: 1px solid #eae4da;
+    border-radius: 14px;
+    max-width: 320px;
+    font-size: 14px;
+    color: var(--ink);
+    opacity: 0.8;
+  }
+
+  /* ---- Nav bar ---- */
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    background: white; border-bottom: 1px solid var(--border, #eae4da);
+    padding: 14px 20px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  nav .navBrand { font-weight: 700; font-size: 16px; }
+  nav .navLinks { display: flex; gap: 22px; }
+  nav .navLinks a {
+    text-decoration: none; color: var(--ink); font-size: 13.5px;
+    opacity: 0.75; cursor: pointer;
+  }
+  nav .navLinks a:hover { opacity: 1; color: var(--accent); }
+  nav .navChatBtn {
+    background: var(--accent); color: white; border: none;
+    padding: 8px 18px; border-radius: 20px; font-size: 13px;
+    font-weight: 600; cursor: pointer;
+  }
+  @media (max-width: 600px) { nav .navLinks { display: none; } }
+
+  /* ---- Stats strip ---- */
+  .statsStrip {
+    background: white;
+    border-top: 1px solid var(--border, #eae4da);
+    border-bottom: 1px solid var(--border, #eae4da);
+    padding: 26px 20px;
+    display: flex; justify-content: center; gap: 50px; flex-wrap: wrap;
+  }
+  .statItem { text-align: center; }
+  .statItem .num { font-size: 24px; font-weight: 700; color: var(--accent); }
+  .statItem .label { font-size: 12.5px; opacity: 0.65; margin-top: 2px; }
+
+  /* ---- Listings ---- */
+  .listingsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+  }
+  .listingCard {
+    background: white; border: 1px solid var(--border, #eae4da);
+    border-radius: 14px; overflow: hidden;
+  }
+  .listingImgWrap {
+    height: 160px; background: var(--bubble-bot);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .listingImgWrap img { width: 100%; height: 100%; object-fit: cover; }
+  .listingImgWrap .fallbackIcon { font-size: 34px; opacity: 0.35; }
+  .listingBody { padding: 16px; }
+  .listingBody .price { font-size: 17px; font-weight: 700; color: var(--accent); }
+  .listingBody .title { font-size: 14.5px; font-weight: 600; margin: 4px 0 6px; }
+  .listingBody .specs { font-size: 12.5px; opacity: 0.65; margin-bottom: 12px; }
+  .listingBody button {
+    width: 100%; background: var(--ink); color: white; border: none;
+    padding: 9px; border-radius: 8px; font-size: 13px; cursor: pointer;
+  }
+
+  /* ---- Testimonials ---- */
+  .testimonialsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 18px;
+  }
+  .testimonialCard {
+    background: white; border: 1px solid var(--border, #eae4da);
+    border-radius: 14px; padding: 20px;
+  }
+  .testimonialCard .stars { color: #f5a623; font-size: 13px; margin-bottom: 8px; }
+  .testimonialCard .quote { font-size: 13.5px; line-height: 1.6; opacity: 0.85; font-style: italic; }
+  .testimonialCard .author { font-size: 12.5px; font-weight: 600; margin-top: 10px; opacity: 0.7; }
+  header#heroHeader.hasHeroImage {
+    background-size: cover;
+    background-position: center;
+    position: relative;
+  }
+  header#heroHeader.hasHeroImage::before {
+    content: "";
+    position: absolute; inset: 0;
+    background: rgba(20, 33, 61, 0.6); /* dark overlay so text stays readable on any photo */
+  }
+  header#heroHeader.hasHeroImage > * {
+    position: relative;
+    z-index: 1;
+  }
+  header#heroHeader.hasHeroImage h1,
+  header#heroHeader.hasHeroImage p {
+    color: white;
+  }
+    display: block;
+    margin: 24px auto 0;
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 14px 32px;
+    border-radius: 30px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(226,112,58,0.3);
+  }
+
+  main { max-width: 860px; margin: 0 auto; padding: 0 20px; width: 100%; }
+
+  section { padding: 50px 0; }
+  section h2 {
+    font-size: 22px;
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .servicesGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+  }
+  .serviceCard {
+    background: white;
+    border: 1px solid var(--border, #eae4da);
+    border-radius: 14px;
+    padding: 24px 20px;
+    text-align: center;
+  }
+  .serviceCard .icon { font-size: 30px; margin-bottom: 12px; }
+  .serviceCard h3 { font-size: 16px; margin-bottom: 8px; }
+  .serviceCard p { font-size: 13.5px; opacity: 0.7; line-height: 1.5; }
+
+  .about { text-align: center; }
+  .about p { font-size: 16px; line-height: 1.7; opacity: 0.8; max-width: 640px; margin: 0 auto; }
+
+  .whyUs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+  .whyUsItem {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 14.5px; line-height: 1.5;
+  }
+  .whyUsItem .check { color: var(--accent); font-weight: 700; }
+
+  .contactFooter {
+    background: var(--ink);
+    color: white;
+    padding: 40px 20px;
+    text-align: center;
+  }
+  .contactFooter h2 { color: white; }
+  .contactFooter .contactRow {
+    display: flex; justify-content: center; gap: 28px; flex-wrap: wrap;
+    font-size: 14px; opacity: 0.85; margin-bottom: 20px;
+  }
+  .contactFooter .cta {
+    display: inline-block;
+    background: var(--accent);
+    color: white;
+    padding: 12px 28px;
+    border-radius: 26px;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+  }
+
+  footer {
+    margin-top: auto;
+    text-align: center;
+    padding: 24px;
+    font-size: 12px;
+    opacity: 0.4;
+  }
+
+  /* ---- Chat widget ---- */
+  #launcher {
+    position: fixed; bottom: 20px; right: 20px;
+    width: 60px; height: 60px; border-radius: 50%;
+    background: var(--accent); color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; cursor: pointer; border: none;
+    box-shadow: 0 6px 20px rgba(20,33,61,0.25);
+    z-index: 9999;
+  }
+  #panel {
+    position: fixed; bottom: 92px; right: 20px;
+    width: 340px; max-width: 92vw; height: 480px; max-height: 75vh;
+    background: var(--bg); border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(20,33,61,0.25);
+    display: none; flex-direction: column; overflow: hidden;
+    z-index: 9999;
+  }
+  #panel.open { display: flex; }
+  #header { background: var(--ink); color: white; padding: 16px; font-weight: 600; font-size: 15px; }
+  #header span { display: block; font-weight: 400; font-size: 12px; opacity: 0.7; margin-top: 2px; }
+  #messages { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .msg { max-width: 80%; padding: 10px 13px; border-radius: 14px; font-size: 14px; line-height: 1.4; }
+  .msg.bot { background: var(--bubble-bot); color: var(--ink); align-self: flex-start; border-bottom-left-radius: 4px; }
+  .msg.user { background: var(--bubble-user); color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+  .msg.error { background: #fdecea; color: #a12622; align-self: flex-start; font-family: monospace; font-size: 12px; }
+  #inputRow { display: flex; padding: 10px; gap: 8px; border-top: 1px solid #eae4da; }
+  #textInput { flex: 1; border: 1px solid #ddd5c7; border-radius: 20px; padding: 10px 14px; font-size: 14px; outline: none; }
+  #sendBtn { background: var(--accent); color: white; border: none; border-radius: 20px; padding: 0 18px; font-size: 14px; cursor: pointer; }
+  #sendBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .optionsRow { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 14px 10px; }
+  .optionBtn {
+    background: white; color: var(--ink); border: 1.5px solid var(--accent);
+    border-radius: 16px; padding: 7px 14px; font-size: 13px; cursor: pointer;
+  }
+  .optionBtn:hover { background: var(--accent); color: white; }
+
+  @media (max-width: 480px) {
+    header h1 { font-size: 26px; }
+    header { padding: 40px 20px 24px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="navBrand" id="navBrand">Business Name</div>
+  <div class="navLinks">
+    <a onclick="scrollToSection('servicesSection')">Services</a>
+    <a onclick="scrollToSection('listingsSection')">Listings</a>
+    <a onclick="scrollToSection('reviewsSection')">Reviews</a>
+    <a onclick="scrollToSection('contactSection')">Contact</a>
+  </div>
+  <button class="navChatBtn" id="navChatBtn">💬 Chat</button>
+</nav>
+
+<header id="heroHeader">
+  <h1 id="pageTitle">Client Business Name</h1>
+  <p id="pageTagline">Short tagline goes here — what you do and who you help, in one line.</p>
+  <button class="heroBtn" id="heroCta">💬 Chat with us — get instant answers</button>
+</header>
+
+<div class="statsStrip" id="statsStrip"></div>
+
+<main>
+  <section id="servicesSection">
+    <h2>What We Offer</h2>
+    <div class="servicesGrid" id="servicesGrid"></div>
+  </section>
+
+  <section id="listingsSection">
+    <h2>Featured Listings</h2>
+    <div class="listingsGrid" id="listingsGrid"></div>
+  </section>
+
+  <section class="about">
+    <h2>About Us</h2>
+    <p id="aboutText">A short paragraph about the business goes here.</p>
+  </section>
+
+  <section>
+    <h2>Why Choose Us</h2>
+    <div class="whyUs" id="whyUsGrid"></div>
+  </section>
+
+  <section id="reviewsSection">
+    <h2>What Clients Say</h2>
+    <div class="testimonialsGrid" id="testimonialsGrid"></div>
+  </section>
+</main>
+
+<div class="contactFooter" id="contactSection">
+  <h2>Get In Touch</h2>
+  <div class="contactRow" id="contactRow"></div>
+  <button class="cta" id="footerCta">Start a Chat</button>
+</div>
+
+<footer>Powered by SJ Leads</footer>
+
+<button id="launcher">💬</button>
+
+<div id="panel">
+  <div id="header">
+    Chat with us
+    <span id="subheader">Usually replies in a few seconds</span>
+  </div>
+  <div id="messages"></div>
+  <div id="optionsContainer"></div>
+  <div id="inputRow">
+    <input id="textInput" type="text" placeholder="Type a message..." />
+    <button id="sendBtn">Send</button>
+  </div>
+</div>
+
+<script>
+// ============ CONTENT — edit this per client's business ============
+const CONTENT = {
+  title: "Horizon Realty",
+  tagline: "Helping families and investors find the right property across Mumbai, Thane, and Pune — without the pressure.",
+
+  // Optional — paste a real photo URL here (property, storefront, team).
+  // Leave as "" for no image; falls back safely either way.
+  heroImage: "",
+
+  about: "Horizon Realty has been helping buyers, renters, and investors navigate the Mumbai and Pune property markets for over a decade. We work with a curated set of verified listings, handle the paperwork end-to-end, and stay with you from the first shortlist to the final handover — no pressure, no hidden fees, just honest guidance.",
+
+  services: [
+    { icon: "🏠", title: "Buy a Home", desc: "Verified listings across budgets, from compact apartments to family villas." },
+    { icon: "🔑", title: "Rent a Property", desc: "Fast-moving rental inventory with flexible lease terms and quick paperwork." },
+    { icon: "📈", title: "Investment Advisory", desc: "Data-backed guidance on high-growth locations and rental yield potential." }
+  ],
+
+  whyUs: [
+    "Fast response — usually within the hour",
+    "500+ families and investors served since 2011",
+    "No pressure, no spam — just honest help",
+    "Available to chat 24/7, even outside office hours"
+  ],
+
+  stats: [
+    { num: "500+", label: "Happy Clients" },
+    { num: "13+", label: "Years Experience" },
+    { num: "220+", label: "Properties Sold" },
+    { num: "4.8★", label: "Average Rating" }
+  ],
+
+  // Each listing photo is optional (falls back to a placeholder icon if
+  // missing or broken — never shows a visible error).
+  listings: [
+    { image: "", title: "3BHK Apartment, Sea-Facing", price: "₹1.65 Cr", specs: "1,480 sq.ft · Navi Mumbai · Ready to Move" },
+    { image: "", title: "2BHK Apartment, Gated Society", price: "₹82 L", specs: "980 sq.ft · Thane West · Under Construction" },
+    { image: "", title: "4BHK Independent Villa", price: "₹3.4 Cr", specs: "2,850 sq.ft · Pune · Ready to Move" }
+  ],
+
+  testimonials: [
+    { name: "Priya Sharma", quote: "Found our dream home within two weeks. Genuinely responsive and honest throughout the entire process.", stars: 5 },
+    { name: "Rahul Mehta", quote: "No pressure, no pushy sales tactics — just helpful guidance the whole way. Highly recommend.", stars: 5 },
+    { name: "Anita Kulkarni", quote: "Quick replies even late at night when I had questions. Made the whole process so much easier.", stars: 5 }
+  ],
+
+  contact: {
+    phone: "+91 98765 43210",
+    email: "hello@horizonrealty.in",
+    hours: "Mon-Sat, 9am-7pm"
+  }
+};
+// ======================================================================
+
+document.getElementById("pageTitle").textContent = CONTENT.title;
+document.getElementById("pageTagline").textContent = CONTENT.tagline;
+document.title = CONTENT.title;
+document.getElementById("aboutText").textContent = CONTENT.about;
+
+// Safely apply the hero background image — only after confirming it
+// actually loads, so a broken URL never leaves white text unreadable
+// on the default light background.
+if (CONTENT.heroImage) {
+  const heroHeader = document.getElementById("heroHeader");
+  const testImg = new Image();
+  testImg.onload = () => {
+    heroHeader.classList.add("hasHeroImage");
+    heroHeader.style.backgroundImage = `url('${CONTENT.heroImage}')`;
+  };
+  testImg.onerror = () => {
+    // Image failed to load — silently keep the default plain background.
+    // No error shown to the visitor, page still looks intentional.
+  };
+  testImg.src = CONTENT.heroImage;
+}
+
+const servicesGrid = document.getElementById("servicesGrid");
+CONTENT.services.forEach(s => {
+  const card = document.createElement("div");
+  card.className = "serviceCard";
+  card.innerHTML = `<div class="icon">${s.icon}</div><h3></h3><p></p>`;
+  card.querySelector("h3").textContent = s.title;
+  card.querySelector("p").textContent = s.desc;
+  servicesGrid.appendChild(card);
+});
+
+const whyUsGrid = document.getElementById("whyUsGrid");
+CONTENT.whyUs.forEach(point => {
+  const item = document.createElement("div");
+  item.className = "whyUsItem";
+  item.innerHTML = `<span class="check">✓</span><span></span>`;
+  item.querySelector("span:last-child").textContent = point;
+  whyUsGrid.appendChild(item);
+});
+
+const contactRow = document.getElementById("contactRow");
+contactRow.innerHTML = `<span>📞 ${CONTENT.contact.phone}</span><span>✉️ ${CONTENT.contact.email}</span><span>🕐 ${CONTENT.contact.hours}</span>`;
+
+document.getElementById("navBrand").textContent = CONTENT.title;
+
+const statsStrip = document.getElementById("statsStrip");
+CONTENT.stats.forEach(s => {
+  const item = document.createElement("div");
+  item.className = "statItem";
+  item.innerHTML = `<div class="num"></div><div class="label"></div>`;
+  item.querySelector(".num").textContent = s.num;
+  item.querySelector(".label").textContent = s.label;
+  statsStrip.appendChild(item);
+});
+
+const listingsGrid = document.getElementById("listingsGrid");
+CONTENT.listings.forEach(l => {
+  const card = document.createElement("div");
+  card.className = "listingCard";
+
+  const imgWrap = document.createElement("div");
+  imgWrap.className = "listingImgWrap";
+  if (l.image) {
+    const img = document.createElement("img");
+    img.src = l.image;
+    img.alt = l.title;
+    img.onerror = () => { imgWrap.innerHTML = '<span class="fallbackIcon">🏠</span>'; };
+    imgWrap.appendChild(img);
+  } else {
+    imgWrap.innerHTML = '<span class="fallbackIcon">🏠</span>';
+  }
+  card.appendChild(imgWrap);
+
+  const body = document.createElement("div");
+  body.className = "listingBody";
+  body.innerHTML = `<div class="price"></div><div class="title"></div><div class="specs"></div><button>Enquire</button>`;
+  body.querySelector(".price").textContent = l.price;
+  body.querySelector(".title").textContent = l.title;
+  body.querySelector(".specs").textContent = l.specs;
+  body.querySelector("button").addEventListener("click", openChat);
+  card.appendChild(body);
+
+  listingsGrid.appendChild(card);
+});
+
+const testimonialsGrid = document.getElementById("testimonialsGrid");
+CONTENT.testimonials.forEach(t => {
+  const card = document.createElement("div");
+  card.className = "testimonialCard";
+  card.innerHTML = `<div class="stars"></div><div class="quote"></div><div class="author"></div>`;
+  card.querySelector(".stars").textContent = "★".repeat(t.stars);
+  card.querySelector(".quote").textContent = `"${t.quote}"`;
+  card.querySelector(".author").textContent = "— " + t.name;
+  testimonialsGrid.appendChild(card);
+});
+
+function scrollToSection(id) {
+  document.getElementById(id).scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// ============ CONFIG — edit these for each client ============
+const CONFIG = {
+  webhookUrl: "https://script.google.com/macros/s/AKfycbyZddoCVD7M1bnjFzmaP_6c_JdLr6T02z-PB_KC82-G1UQDSrVr08JpTo-StU37iGBT/exec",  // must end in /exec
+  dashboardUrl: "https://assistq-growth-platform.onrender.com", // ASSISTQ Growth Platform bridge
+  clientId: "demo-realty",
+  businessName: "This Business",
+  greeting: "Hi! 👋 What's your name?",
+
+  // Must be in the SAME ORDER as the backend's CONFIG.questions.
+  // Give a question "options" to show quick-tap buttons instead of typing.
+  // Leave options as null for free-text questions like name/phone/location.
+  questions: [
+    { key: "name",  options: null },
+    { key: "phone", options: null },
+    { key: "email", options: null },
+    { key: "purpose", options: ["Buying", "Renting"] },
+    { key: "location", options: null },
+    { key: "configuration", options: ["1BHK", "2BHK", "3BHK", "4BHK"] },
+    { key: "budget", options: ["Under ₹50L", "₹50L-1Cr", "₹1Cr-2Cr", "₹2Cr+"] },
+    { key: "timeline", options: ["Immediately", "1-3 months", "3-6 months", "Just exploring"] }
+  ]
+};
+// ================================================================
+
+let conversation = [];
+let knownFields = {};
+let isComplete = false;
+let awaitingLocalField = null;
+const leadId = "lead_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+
+// Allow a website embed to select a client without editing the chatbot source.
+const params = new URLSearchParams(window.location.search);
+const clientFromUrl = params.get("clientId");
+const dashboardFromUrl = params.get("dashboardUrl");
+if (clientFromUrl) CONFIG.clientId = clientFromUrl;
+if (dashboardFromUrl) CONFIG.dashboardUrl = dashboardFromUrl.replace(/\/$/, "");
+
+// Capture UTM tracking params from the URL.
+// Normal links use: ?utm_source=instagram&utm_medium=paid&utm_campaign=summer_property
+// The parser also tolerates accidentally omitted '&' separators so a malformed test URL
+// does not turn the whole query into the source value.
+function readUTM() {
+  const rawSearch = window.location.search || "";
+  const query = rawSearch.replace(/^\?/, "");
+  const normalized = query.replace(/(?<!^)(?<![&])utm_(medium|campaign|source)=/gi, "&utm_$1=");
+  const params = new URLSearchParams(normalized);
+  return {
+    source: (params.get("utm_source") || "").trim(),
+    medium: (params.get("utm_medium") || "").trim(),
+    campaign: (params.get("utm_campaign") || "").trim()
+  };
+}
+const utm = readUTM();
+
+// Load non-secret client configuration from ASSISTQ so each client can be configured from the dashboard.
+async function loadAssistQClientConfig(){
+  if(!CONFIG.dashboardUrl || !CONFIG.clientId) return;
+  try{
+    const r=await fetch(CONFIG.dashboardUrl+"/api/public/client-config?clientId="+encodeURIComponent(CONFIG.clientId),{cache:"no-store"});
+    if(!r.ok){ CONFIG.subscriptionActive=false; return; }
+    const data=await r.json();
+    CONFIG.subscriptionActive = data.subscription?.active !== false;
+    if(!CONFIG.subscriptionActive) return;
+    if(data.businessName) CONFIG.businessName=data.businessName;
+    if(data.assistant?.name) CONFIG.assistantName=data.assistant.name;
+    if(data.assistant?.greeting) CONFIG.greeting=data.assistant.greeting;
+    if(Array.isArray(data.assistant?.questions) && data.assistant.questions.length) CONFIG.questions=data.assistant.questions;
+  }catch(e){ console.debug("ASSISTQ client config unavailable",e); }
+}
+
+const launcher = document.getElementById("launcher");
+const panel = document.getElementById("panel");
+const messagesEl = document.getElementById("messages");
+const optionsContainer = document.getElementById("optionsContainer");
+const textInput = document.getElementById("textInput");
+const sendBtn = document.getElementById("sendBtn");
+
+launcher.addEventListener("click", async () => {
+  panel.classList.toggle("open");
+  if (conversation.length === 0) {
+    await loadAssistQClientConfig();
+    if (CONFIG.subscriptionActive === false) { addMessage("error", "This assistant is temporarily unavailable. Please contact the business."); return; }
+    addMessage("bot", CONFIG.greeting);
+    conversation.push({ role: "assistant", content: CONFIG.greeting });
+    bridgeEvent("assistant", CONFIG.greeting);
+    showOptionsIfAny();
+  }
+});
+
+async function openChat() {
+  panel.classList.add("open");
+  if (conversation.length === 0) {
+    await loadAssistQClientConfig();
+    if (CONFIG.subscriptionActive === false) { addMessage("error", "This assistant is temporarily unavailable. Please contact the business."); return; }
+    addMessage("bot", CONFIG.greeting);
+    conversation.push({ role: "assistant", content: CONFIG.greeting });
+    bridgeEvent("assistant", CONFIG.greeting);
+    showOptionsIfAny();
+  }
+  panel.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+document.getElementById("heroCta").addEventListener("click", openChat);
+document.getElementById("footerCta").addEventListener("click", openChat);
+document.getElementById("navChatBtn").addEventListener("click", openChat);
+
+sendBtn.addEventListener("click", () => sendMessage());
+textInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
+
+function addMessage(sender, text) {
+  const div = document.createElement("div");
+  div.className = "msg " + sender;
+  div.textContent = text;
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  return div;
+}
+
+function showOptionsIfAny() {
+  optionsContainer.innerHTML = "";
+  const nextQ = CONFIG.questions.find(q => !knownFields[q.key]);
+  if (!nextQ || !nextQ.options || !nextQ.options.length) return;
+
+  const row = document.createElement("div");
+  row.className = "optionsRow";
+  nextQ.options.forEach(opt => {
+    const btn = document.createElement("button");
+    btn.className = "optionBtn";
+    btn.textContent = opt;
+    btn.onclick = () => sendMessage(opt);
+    row.appendChild(btn);
+  });
+  optionsContainer.appendChild(row);
+}
+
+async function bridgeEvent(role, content) {
+  if (!CONFIG.dashboardUrl || CONFIG.dashboardUrl.includes("PASTE_")) return;
+  try {
+    await fetch(CONFIG.dashboardUrl + "/api/bridge/conversation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        leadId,
+        event: { role, content, at: new Date().toISOString() },
+        fields: knownFields,
+        utm,
+        clientId: CONFIG.clientId,
+        businessName: CONFIG.businessName
+      }),
+      keepalive: true
+    });
+  } catch (e) {
+    // The chatbot must keep working even when the local dashboard is offline.
+    console.debug("ASSISTQ dashboard bridge unavailable", e);
+  }
+}
+
+async function bridgeLead() {
+  if (!CONFIG.dashboardUrl || CONFIG.dashboardUrl.includes("PASTE_")) return;
+  try {
+    await fetch(CONFIG.dashboardUrl + "/api/bridge/lead", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        conversationId: leadId,
+        fields: knownFields,
+        messages: conversation,
+        utm,
+        clientId: CONFIG.clientId,
+        businessName: CONFIG.businessName
+      }),
+      keepalive: true
+    });
+  } catch (e) {
+    console.debug("ASSISTQ dashboard lead bridge unavailable", e);
+  }
+}
+
+async function sendMessage(optionText) {
+  if (CONFIG.subscriptionActive === false) { addMessage("error", "This assistant is temporarily unavailable. Please contact the business."); return; }
+  const text = optionText || textInput.value.trim();
+  if (!text || isComplete) return;
+
+  if (awaitingLocalField) {
+    if (awaitingLocalField === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)) {
+      addMessage("error", "Please enter a valid email address.");
+      return;
+    }
+    const field=awaitingLocalField;
+    knownFields[field]=text;
+    addMessage("user", text);
+    conversation.push({ role: "user", content: text });
+    bridgeEvent("user", text);
+    textInput.value = "";
+    awaitingLocalField = null;
+    const missing = ["name", "phone", "email"].find(k => !String(knownFields[k] || "").trim());
+    if (missing) {
+      awaitingLocalField = missing;
+      const prompt = missing === "email" ? "Before I save this enquiry, what is the best email address to reach you?" : `Before I save this enquiry, could you share your ${missing}?`;
+      addMessage("bot", prompt);
+      conversation.push({ role: "assistant", content: prompt });
+      bridgeEvent("assistant", prompt);
+    } else {
+      addMessage("bot", "Thanks! I have everything I need. Let me save your enquiry.");
+      conversation.push({ role: "assistant", content: "Thanks! I have everything I need. Let me save your enquiry." });
+      bridgeEvent("assistant", "Thanks! I have everything I need. Let me save your enquiry.");
+      isComplete = true;
+      await submitLead();
+    }
+    return;
+  }
+
+  optionsContainer.innerHTML = "";
+  addMessage("user", text);
+  conversation.push({ role: "user", content: text });
+  bridgeEvent("user", text);
+  textInput.value = "";
+  sendBtn.disabled = true;
+
+  const typingEl = addMessage("bot", "...");
+
+  try {
+    const res = await fetch(CONFIG.webhookUrl, {
+      method: "POST",
+      body: JSON.stringify({ action: "chat", leadId: leadId, messages: conversation, knownFields: knownFields, clientId: CONFIG.clientId, dashboardUrl: CONFIG.dashboardUrl, businessName: CONFIG.businessName })
+    });
+
+    const rawText = await res.text();
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch (parseErr) {
+      typingEl.remove();
+      addMessage("error", "Backend didn't return JSON. Raw response:\n" + rawText.slice(0, 300));
+      sendBtn.disabled = false;
+      return;
+    }
+
+    if (data.status === "error") {
+      typingEl.remove();
+      addMessage("error", "Backend error: " + data.message);
+      sendBtn.disabled = false;
+      return;
+    }
+
+    typingEl.remove();
+    addMessage("bot", data.reply);
+    conversation.push({ role: "assistant", content: data.reply });
+    knownFields = data.fields || knownFields;
+    bridgeEvent("assistant", data.reply);
+
+    if (data.complete && !isComplete) {
+      const missing = ["name", "phone", "email"].find(k => !String(knownFields[k] || "").trim());
+      if (missing === "email") {
+        awaitingLocalField = "email";
+        addMessage("bot", "Before I save this enquiry, what is the best email address to reach you?");
+        conversation.push({ role: "assistant", content: "Before I save this enquiry, what is the best email address to reach you?" });
+        bridgeEvent("assistant", "Before I save this enquiry, what is the best email address to reach you?");
+      } else if (missing) {
+        awaitingLocalField = missing;
+        addMessage("bot", `Before I save this enquiry, could you share your ${missing}?`);
+        conversation.push({ role: "assistant", content: `Before I save this enquiry, could you share your ${missing}?` });
+        bridgeEvent("assistant", `Before I save this enquiry, could you share your ${missing}?`);
+      } else {
+        isComplete = true;
+        await submitLead();
+      }
+    } else {
+      showOptionsIfAny();
+    }
+
+  } catch (err) {
+    typingEl.remove();
+    addMessage("error", "Request failed: " + err.message + " (check the webhookUrl and your internet connection)");
+  }
+
+  sendBtn.disabled = false;
+  textInput.focus();
+}
+
+async function submitLead() {
+  if (CONFIG.subscriptionActive === false) { addMessage("error", "This assistant is temporarily unavailable. Please contact the business."); return; }
+  await bridgeLead();
+  try {
+    const res = await fetch(CONFIG.webhookUrl, {
+      method: "POST",
+      body: JSON.stringify({ action: "submit", leadId: leadId, fields: knownFields, utm: utm, clientId: CONFIG.clientId, businessName: CONFIG.businessName })
+    });
+    const rawText = await res.text();
+    let data;
+    try { data = JSON.parse(rawText); } catch (e) { data = null; }
+
+    if (!data || data.status !== "success") {
+      addMessage("error", "Lead submit failed: " + (data ? data.message : rawText.slice(0, 300)));
+    } else {
+      addMessage("bot", "✅ Saved! Thanks — we'll be in touch shortly.");
+    }
+  } catch (err) {
+    addMessage("error", "Submit request failed: " + err.message);
+  }
+}
+</script>
+
+</body>
+</html>
