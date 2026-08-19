@@ -18,7 +18,7 @@ const DATA_FILE=path.join(DATA_DIR,"store.json");
 fs.mkdirSync(DATA_DIR,{recursive:true});
 
 const defaultStore={
-  settings:{businessName:"Demo Realty Group",clientId:"demo-realty",website:"https://example-realty.in",reportEmail:"",clientWhatsApp:"",whatsappCountryCode:"91",reportEnabled:false,hotThreshold:80,warmThreshold:50,assistant:{name:"ASSISTQ Assistant",greeting:"Hi! 👋 What can I help you with today?",tone:"Professional, friendly and concise",knowledge:"",questions:[]},customLeadFields:[],scoring:{name:10,phone:15,email:10,purpose:10,location:10,configuration:10,budget:20,timeline:10,engagement:5}},
+  settings:{businessName:"Demo Realty Group",clientId:"demo-realty",website:"https://example-realty.in",reportEmail:"",clientWhatsApp:"",whatsappCountryCode:"91",reportEnabled:false,hotThreshold:80,warmThreshold:50,assistant:{name:"ASSISTQ Assistant",greeting:"Hi! 👋 What can I help you with today?",tone:"Professional, friendly and concise",knowledge:"",questions:[]},customLeadFields:[],scoring:{name:10,phone:15,email:5,location:{default:6,matchPoints:10,serviceAreas:["Navi Mumbai","Mumbai","Thane","Pune"]},engagement:5,purpose:{default:5,values:{"Buying":10,"Renting":6}},configuration:{default:9,values:{"1BHK":9,"2BHK":12,"3BHK":14,"4BHK":15}},budget:{default:9,values:{"Under ₹50L":9,"₹50L-1Cr":11,"₹1Cr-2Cr":13,"₹2Cr+":15}},timeline:{default:8,values:{"Immediately":15,"1-3 months":11,"3-6 months":8,"Just exploring":4}}}},
   clients:[{id:"demo-realty",name:"Demo Realty Group",website:"https://example-realty.in",reportEmail:"",accessCode:"ASSISTQ-DEMO",plan:"Demo",subscriptionStatus:"active",subscriptionStart:null,subscriptionEnd:null}],
   keywords:[
     {id:"kw1",clientId:"demo-realty",keyword:"2 bhk flats in kharghar",targetUrl:"/2-bhk-kharghar",priority:"High",intent:"Commercial"},
@@ -35,10 +35,15 @@ if(!fs.existsSync(DATA_FILE))fs.writeFileSync(DATA_FILE,JSON.stringify(defaultSt
 function readStore(){return JSON.parse(fs.readFileSync(DATA_FILE,"utf8"));}
 function writeStore(s){fs.writeFileSync(DATA_FILE,JSON.stringify(s,null,2));}
 function ensureStoreShape(s){
-  s.settings=s.settings||defaultStore.settings; s.clients=s.clients||defaultStore.clients; s.clientProfiles=s.clientProfiles||{}; s.keywords=s.keywords||[]; s.leads=s.leads||[]; s.conversations=s.conversations||{}; s.utm=s.utm||{}; s.gsc=s.gsc||defaultStore.gsc; s.gsc.byClient=s.gsc.byClient||{}; s.ga4=s.ga4||defaultStore.ga4; s.ga4.byClient=s.ga4.byClient||{}; s.google=s.google||defaultStore.google; s.google.byClient=s.google.byClient||{}; s.seoAudits=s.seoAudits||{}; s.reportHistory=s.reportHistory||[];
+  s.settings=s.settings||defaultStore.settings; s.clients=s.clients||defaultStore.clients; s.clientProfiles=s.clientProfiles||{}; s.keywords=s.keywords||[]; s.leads=s.leads||[]; s.conversations=s.conversations||{}; s.utm=s.utm||{}; s.gsc=s.gsc||defaultStore.gsc; s.gsc.byClient=s.gsc.byClient||{}; s.ga4=s.ga4||defaultStore.ga4; s.ga4.byClient=s.ga4.byClient||{}; s.google=s.google||defaultStore.google; s.google.byClient=s.google.byClient||{}; s.seoAudits=s.seoAudits||{}; s.reportHistory=s.reportHistory||[]; s.security=s.security||{adminPasswordHash:null};
   s.clients=s.clients.map(c=>({...c,accessCode:c.accessCode||crypto.randomBytes(4).toString("hex").toUpperCase(),plan:c.plan||"Starter",subscriptionStatus:c.subscriptionStatus||"active",subscriptionStart:c.subscriptionStart||null,subscriptionEnd:c.subscriptionEnd||null}));
   return s;
 }
+
+// ---------- Password hashing (no external dependency: Node's built-in scrypt) ----------
+function hashPassword(password){const salt=crypto.randomBytes(16).toString("hex");const hash=crypto.scryptSync(String(password),salt,64).toString("hex");return `${salt}:${hash}`;}
+function verifyPassword(password,stored){try{const [salt,hash]=String(stored).split(":");if(!salt||!hash)return false;const test=crypto.scryptSync(String(password),salt,64);const known=Buffer.from(hash,"hex");return known.length===test.length&&crypto.timingSafeEqual(known,test);}catch{return false;}}
+function checkAdminPassword(password,s){const storedHash=s.security?.adminPasswordHash;if(storedHash)return verifyPassword(password,storedHash);return String(password)===String(process.env.ADMIN_PASSWORD||"ChangeMe123!");}
 
 app.use(express.json({limit:"4mb"}));app.use(express.urlencoded({extended:true}));
 app.use(session({secret:process.env.SESSION_SECRET||"ASSISTQ-local-change-me",resave:false,saveUninitialized:false,cookie:{httpOnly:true,sameSite:"lax",secure:process.env.NODE_ENV==="production",maxAge:7*24*60*60*1000}}));
@@ -86,9 +91,32 @@ function requireActiveClient(req,res,next){
   req.assistqClientId=id; next();
 }
 
-function scoreLead(fields={},messages=[],settings={}){const w={name:10,phone:15,email:10,purpose:10,location:10,configuration:10,budget:20,timeline:10,engagement:5,...(settings.scoring||{})};let score=0;for(const key of ["name","phone","email","purpose","location","configuration","budget","timeline"])if(fields[key])score+=Number(w[key])||0;if(messages.length>=6)score+=Number(w.engagement)||0;return Math.min(100,Math.max(0,Math.round(score)));}
+// A scoring weight for a field is either:
+//   - a plain number (flat "answered = N points", used for free-text fields
+//     like name/phone/email, and the engagement bonus)
+//   - an object { default, values: {"Answer text": points, ...} } for
+//     multiple-choice fields — score depends on which option was picked
+//   - an object { default, matchPoints, serviceAreas: [...] } for location —
+//     bonus points if the typed location contains one of the service areas
+function fieldPoints(w,value){
+  if(!value)return 0;
+  if(typeof w==="number"||typeof w==="string")return Number(w)||0;
+  if(w&&Array.isArray(w.serviceAreas)){const matched=w.serviceAreas.some(a=>String(value).toLowerCase().includes(String(a).toLowerCase()));return Number(matched?w.matchPoints:w.default)||0;}
+  if(w&&w.values){const v=w.values[value];return Number(v!==undefined?v:w.default)||0;}
+  if(w&&typeof w.default!=="undefined")return Number(w.default)||0;
+  return 0;
+}
+function fieldMaxPoints(w){
+  if(typeof w==="number"||typeof w==="string")return Number(w)||0;
+  if(w&&Array.isArray(w.serviceAreas))return Math.max(Number(w.matchPoints)||0,Number(w.default)||0);
+  if(w&&w.values)return Math.max(Number(w.default)||0,...Object.values(w.values).map(v=>Number(v)||0));
+  if(w&&typeof w.default!=="undefined")return Number(w.default)||0;
+  return 0;
+}
+const defaultScoring={name:10,phone:15,email:5,location:{default:6,matchPoints:10,serviceAreas:["Navi Mumbai","Mumbai","Thane","Pune"]},engagement:5,purpose:{default:5,values:{"Buying":10,"Renting":6}},configuration:{default:9,values:{"1BHK":9,"2BHK":12,"3BHK":14,"4BHK":15}},budget:{default:9,values:{"Under ₹50L":9,"₹50L-1Cr":11,"₹1Cr-2Cr":13,"₹2Cr+":15}},timeline:{default:8,values:{"Immediately":15,"1-3 months":11,"3-6 months":8,"Just exploring":4}}};
+function scoreLead(fields={},messages=[],settings={}){const w={...defaultScoring,...(settings.scoring||{})};let score=0;for(const key of ["name","phone","email","purpose","location","configuration","budget","timeline"])score+=fieldPoints(w[key],fields[key]);if(messages.length>=6)score+=Number(w.engagement)||0;return Math.min(100,Math.max(0,Math.round(score)));}
 function statusFor(score,settings={}){const hot=Number(settings.hotThreshold||80),warm=Number(settings.warmThreshold||50);return score>=hot?"HOT":score>=warm?"WARM":"COLD";}
-function scoreBreakdown(fields={},messages=[],settings={}){const w={name:10,phone:15,email:10,purpose:10,location:10,configuration:10,budget:20,timeline:10,engagement:5,...(settings.scoring||{})};return {name:fields.name?Number(w.name):0,phone:fields.phone?Number(w.phone):0,email:fields.email?Number(w.email):0,purpose:fields.purpose?Number(w.purpose):0,location:fields.location?Number(w.location):0,configuration:fields.configuration?Number(w.configuration):0,budget:fields.budget?Number(w.budget):0,timeline:fields.timeline?Number(w.timeline):0,engagement:messages.length>=6?Number(w.engagement):0};}
+function scoreBreakdown(fields={},messages=[],settings={}){const w={...defaultScoring,...(settings.scoring||{})};const out={};for(const key of ["name","phone","email","purpose","location","configuration","budget","timeline"])out[key]=fieldPoints(w[key],fields[key]);out.engagement=messages.length>=6?(Number(w.engagement)||0):0;return out;}
 function normaliseFields(f={}){return {name:String(f.name||"").trim(),phone:String(f.phone||"").trim(),email:String(f.email||"").trim(),purpose:String(f.purpose||"").trim(),location:String(f.location||"").trim(),configuration:String(f.configuration||"").trim(),budget:String(f.budget||"").trim(),timeline:String(f.timeline||"").trim()};}
 function cleanUTM(u={}){return {source:String(u.source||u.utm_source||"").trim(),medium:String(u.medium||u.utm_medium||"").trim(),campaign:String(u.campaign||u.utm_campaign||"").trim()};}
 function requireWebhookSecret(req,res,next){
@@ -103,13 +131,24 @@ function whatsappUrl(phone,message=""){const digits=String(phone||"").replace(/\
 app.get("/api/auth/status",(req,res)=>res.json({authenticated:!!req.session.user,user:req.session.user||null,googleConnected:!!req.session.tokens,googleEmail:req.session.googleEmail||null}));
 app.post("/api/auth/login",rateLimit("login",10,60000),(req,res)=>{
   const email=String(req.body.email||"").trim().toLowerCase();const password=String(req.body.password||"");
-  const adminEmail=String(process.env.ADMIN_EMAIL||"admin@assistq.local").toLowerCase();const adminPassword=String(process.env.ADMIN_PASSWORD||"ChangeMe123!");
-  if(email===adminEmail&&password===adminPassword){req.session.user={role:"admin",email};return res.json({ok:true,user:req.session.user});}
-  const s=ensureStoreShape(readStore());const c=s.clients.find(x=>x.reportEmail?.toLowerCase()===email&&x.accessCode===password);
+  const adminEmail=String(process.env.ADMIN_EMAIL||"admin@assistq.local").toLowerCase();
+  const s=ensureStoreShape(readStore());
+  if(email===adminEmail&&checkAdminPassword(password,s)){req.session.user={role:"admin",email};return res.json({ok:true,user:req.session.user});}
+  const c=s.clients.find(x=>x.reportEmail?.toLowerCase()===email&&x.accessCode===password);
   if(c){const sub=subscriptionInfo(c);if(!sub.active)return res.status(403).json({error:`This client account is ${sub.status}. Please contact ASSISTQ to renew the subscription.`,subscription:sub});req.session.user={role:"client",email,clientId:c.id,name:c.name};return res.json({ok:true,user:req.session.user});}
   res.status(401).json({error:"Invalid email or password"});
 });
 app.post("/api/auth/logout",(req,res)=>req.session.destroy(()=>res.json({ok:true})));
+app.post("/api/auth/change-password",requireAuth,rateLimit("change-password",5,60000),(req,res)=>{
+  if(req.session.user.role!=="admin")return res.status(403).json({error:"Only the admin account can change its password here. Client access codes are managed from the Clients page."});
+  const s=ensureStoreShape(readStore());
+  const current=String(req.body.currentPassword||"");const next=String(req.body.newPassword||"");
+  if(!checkAdminPassword(current,s))return res.status(401).json({error:"Current password is incorrect."});
+  if(next.length<8)return res.status(400).json({error:"New password must be at least 8 characters."});
+  s.security.adminPasswordHash=hashPassword(next);
+  writeStore(s);
+  res.json({ok:true});
+});
 
 // Public, non-secret client configuration for embeddable chatbot.
 app.get("/api/public/client-config",rateLimit("public-config",120,60000),(req,res)=>{const s=ensureStoreShape(readStore());const id=normaliseClientId(req.query.clientId||s.settings.clientId);const c=s.clients.find(x=>x.id===id);if(!c)return res.status(404).json({error:"Client not found"});const sub=subscriptionInfo(c);if(!sub.active)return res.status(403).json({error:`Client subscription is ${sub.status}.`,subscription:sub});const profile=s.clientProfiles[id]||{};const cs=clientSettings(s,id);res.setHeader("Cache-Control","no-store");res.json({clientId:id,businessName:c.name,website:c.website,reportEmail:c.reportEmail||"",clientWhatsApp:cs.clientWhatsApp||"",whatsappCountryCode:cs.whatsappCountryCode||"91",subscription:sub,assistant:profile.assistant||cs.assistant||defaultStore.settings.assistant,customLeadFields:profile.customLeadFields||cs.customLeadFields||[]});});
@@ -127,7 +166,7 @@ app.get("/api/state",requireAuth,(req,res)=>{
 
 app.post("/api/settings",requireAuth,(req,res)=>{
   const s=ensureStoreShape(readStore());const clientId=normaliseClientId(req.body.clientId||req.session.user.clientId||s.settings.clientId);if(req.session.user.role!=="admin"&&req.session.user.clientId!==clientId)return res.status(403).json({error:"Workspace access denied"});
-  const scoring={...s.settings.scoring,...(req.body.scoring||{})};if(Object.values(scoring).reduce((a,b)=>a+Number(b||0),0)!==100)return res.status(400).json({error:"Scoring weights must total 100"});
+  const scoring={...defaultScoring,...s.settings.scoring,...(req.body.scoring||{})};const scoringTotal=Object.values(scoring).reduce((a,w)=>a+fieldMaxPoints(w),0);if(scoringTotal!==100)return res.status(400).json({error:`Scoring max points must total 100 (currently ${scoringTotal}). For multiple-choice fields this is the highest single option's points.`});
   s.settings={...s.settings,...req.body,clientId,scoring};const idx=s.clients.findIndex(x=>x.id===clientId);const existing=s.clients[idx]||{};const c={...existing,id:clientId,name:String(req.body.businessName||s.settings.businessName||"Client"),website:String(req.body.website||s.settings.website||""),reportEmail:String(req.body.reportEmail||s.settings.reportEmail||""),clientWhatsApp:String(req.body.clientWhatsApp||existing.clientWhatsApp||s.settings.clientWhatsApp||""),whatsappCountryCode:String(req.body.whatsappCountryCode||existing.whatsappCountryCode||s.settings.whatsappCountryCode||"91"),hotThreshold:Number(req.body.hotThreshold??existing.hotThreshold??s.settings.hotThreshold??80),warmThreshold:Number(req.body.warmThreshold??existing.warmThreshold??s.settings.warmThreshold??50),reportEnabled:req.body.reportEnabled!==undefined?!!req.body.reportEnabled:!!(existing.reportEnabled??s.settings.reportEnabled),scoring,assistant:existing.assistant||s.settings.assistant,customLeadFields:existing.customLeadFields||s.settings.customLeadFields,accessCode:existing.accessCode||crypto.randomBytes(5).toString("hex").toUpperCase(),plan:existing.plan||"Starter",subscriptionStatus:existing.subscriptionStatus||"active",subscriptionStart:existing.subscriptionStart||null,subscriptionEnd:existing.subscriptionEnd||null};if(idx>=0)s.clients[idx]={...s.clients[idx],...c};else s.clients.push(c);writeStore(s);res.json({ok:true,settings:clientSettings(s,clientId),accessCode:c.accessCode});
 });
 app.get("/api/client/profile",requireAuth,(req,res)=>{const s=ensureStoreShape(readStore());const id=selectedClient(req,s);if(req.session.user.role!=="admin"&&req.session.user.clientId!==id)return res.status(403).json({error:"Workspace access denied"});const cs=clientSettings(s,id);res.json(s.clientProfiles[id]||{assistant:cs.assistant||defaultStore.settings.assistant,customLeadFields:cs.customLeadFields||[]});});
